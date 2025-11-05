@@ -1,3 +1,13 @@
+---
+title: VAE Interactive Playground
+emoji: 🧠
+colorFrom: purple
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # 🧠 VAE Interactive Playground
 
 An interactive web application for training and visualizing Variational Autoencoders (VAE) on the MNIST dataset.

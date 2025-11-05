@@ -735,6 +735,11 @@ HTML_TEMPLATE = '''
         // Check initial status
         updateProgress();
     </script>
+
+    <div style="text-align: center; padding: 20px; color: #666; margin-top: 40px; border-top: 2px solid #eee;">
+    <p>Created by <strong>Mohammad Noorchenarboo</strong> | 
+    <a href="https://www.linkedin.com/in/mnoorchenar" target="_blank" style="color: #667eea;">LinkedIn</a></p>
+</div>
 </body>
 </html>
 '''

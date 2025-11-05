@@ -39,3 +39,9 @@ The VAE consists of:
 - Framework: Flask + PyTorch
 - Dataset: MNIST (10,000 sample subset for faster training)
 - Loss: Binary Cross-Entropy + KL Divergence
+
+## Credits
+
+Created by **Mohammad Noorchenarboo**
+
+Connect with me on [LinkedIn](https://www.linkedin.com/in/mnoorchenar)

@@ -49,13 +49,6 @@ An interactive web application for exploring and comparing loss functions in reg
    - Tracks loss, convergence, and timing.
 3. The results are visualized interactively in the browser.
 
-## Run Locally
-
-```bash
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-python app.py
 
 ## Credits and Copyright
 

@@ -56,3 +56,13 @@ python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 python app.py
+
+## Credits and Copyright
+
+© 2025 Mohammad Noorchenarboo. All rights reserved.
+
+This project and all associated code are the intellectual property of the author.  
+Reproduction, redistribution, or modification of any part of this repository is strictly prohibited without prior written permission.
+
+For permissions or inquiries, contact: [LinkedIn](https://www.linkedin.com/in/mnoorchenar)
+

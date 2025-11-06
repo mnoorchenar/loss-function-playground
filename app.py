@@ -19,38 +19,385 @@ HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ML Loss Function Playground</title>
+    <title>ML Loss Function Playground - Interactive Learning Tool</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body{font-family:Arial,sans-serif;margin:20px;background:#f5f5f5;}
-        .container{max-width:1400px;margin:0 auto;background:white;padding:30px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.1);}
-        h1{color:#333;text-align:center;}
-        .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-bottom:30px;}
-        .control-group{display:flex;flex-direction:column;}
-        label{font-weight:bold;margin-bottom:5px;color:#555;}
-        input,select{padding:8px;border:1px solid #ddd;border-radius:4px;font-size:14px;}
-        .checkbox-group{display:flex;flex-wrap:wrap;gap:10px;}
-        .checkbox-group label{font-weight:normal;display:flex;align-items:center;gap:5px;}
-        button{background:#4CAF50;color:white;padding:12px 30px;border:none;border-radius:4px;cursor:pointer;font-size:16px;margin-top:20px;}
-        button:hover{background:#45a049;}
-        button:disabled{background:#ccc;cursor:not-allowed;}
-        #results{margin-top:30px;}
-        .plot-container{margin-bottom:30px;}
-        #loading{display:none;text-align:center;padding:20px;color:#4CAF50;}
-        .summary-table{width:100%;border-collapse:collapse;margin-top:20px;}
-        .summary-table th,.summary-table td{padding:10px;text-align:left;border-bottom:1px solid #ddd;}
-        .summary-table th{background:#f0f0f0;font-weight:bold;}
-        .warning{background:#fff3cd;padding:10px;border-radius:4px;margin:10px 0;border-left:4px solid #ffc107;}
-        .best-metric{background:#d4edda;font-weight:bold;}
-        .error-message{background:#f8d7da;padding:10px;border-radius:4px;margin:10px 0;border-left:4px solid #dc3545;}
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .header-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            border-radius: 15px 15px 0 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .header-banner h1 {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .header-banner p {
+            font-size: 1.1em;
+            opacity: 0.95;
+            margin-top: 10px;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .content-wrapper {
+            padding: 40px;
+        }
+        .info-section {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .info-section h3 {
+            font-size: 1.4em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .info-section ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        .info-section li {
+            padding: 8px 0 8px 25px;
+            position: relative;
+            line-height: 1.6;
+        }
+        .info-section li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+            color: #fff;
+        }
+        .section-title {
+            font-size: 1.8em;
+            color: #333;
+            margin: 30px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+            font-weight: 600;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .control-group:hover {
+            background: #fff;
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            transform: translateY(-2px);
+        }
+        label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 0.95em;
+        }
+        input, select {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+        }
+        .checkbox-group label {
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+        .checkbox-group label:hover {
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 18px 40px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 30px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            width: 100%;
+            max-width: 400px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        #results {
+            margin-top: 40px;
+        }
+        .plot-container {
+            margin-bottom: 40px;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+        .plot-container h3 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.4em;
+        }
+        #loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+        #loading h3 {
+            font-size: 1.5em;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .summary-table th, .summary-table td {
+            padding: 15px;
+            text-align: left;
+        }
+        .summary-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85em;
+            letter-spacing: 0.5px;
+        }
+        .summary-table tr {
+            border-bottom: 1px solid #eee;
+            transition: all 0.2s ease;
+        }
+        .summary-table tr:hover {
+            background: #f8f9fa;
+        }
+        .warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 20px 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(240, 147, 251, 0.3);
+        }
+        .warning strong {
+            font-size: 1.1em;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .best-metric {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            font-weight: 600;
+            padding: 8px;
+            border-radius: 6px;
+        }
+        .error-message {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(235, 51, 73, 0.3);
+        }
+        .educational-info {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+        }
+        .educational-info h4 {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+        .loss-function-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+        .loss-function-card h5 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+        .loss-function-card p {
+            color: #666;
+            line-height: 1.6;
+            font-size: 0.95em;
+        }
+        .footer {
+            background: linear-gradient(135deg, #2d3436 0%, #000000 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            margin-top: 50px;
+            border-radius: 0 0 15px 15px;
+        }
+        .footer p {
+            margin: 10px 0;
+            line-height: 1.8;
+        }
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .footer a:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+        .footer .copyright-notice {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🧪 ML Loss Function Playground</h1>
-        <div class="warning">
-            <strong>Tip:</strong> Try mismatched loss functions (e.g., MSE for classification) to see training speed and convergence impacts! Note: Mismatched loss functions may produce numerical issues (e.g., invalid losses) or poor performance, which is intentional for teaching purposes. Ensure inputs like noise level are valid floats between 0 and 100.
+        <div class="header-banner">
+            <h1>🧪 ML Loss Function Playground</h1>
+            <p>Interactive Educational Tool for Understanding Machine Learning Loss Functions</p>
         </div>
+        
+        <div class="content-wrapper">
+            <div class="info-section">
+                <h3>📚 What You'll Learn</h3>
+                <ul>
+                    <li><strong>Loss Function Comparison:</strong> See how different loss functions perform on the same dataset</li>
+                    <li><strong>Convergence Behavior:</strong> Understand which loss functions converge faster for different tasks</li>
+                    <li><strong>Training Dynamics:</strong> Visualize how training and validation losses evolve over epochs</li>
+                    <li><strong>Robustness Testing:</strong> Experiment with noise, outliers, and mismatched loss functions</li>
+                    <li><strong>Performance Metrics:</strong> Compare accuracy, precision, recall, F1-score for classification or MSE, MAE, R² for regression</li>
+                </ul>
+            </div>
+            
+            <div class="educational-info">
+                <h4>💡 Educational Tips</h4>
+                <p>Try intentionally mismatching loss functions with tasks (e.g., using MSE for classification) to observe:</p>
+                <ul style="margin-top: 10px;">
+                    <li>How training becomes unstable or slow</li>
+                    <li>Why choosing the right loss function matters</li>
+                    <li>The impact on convergence speed and final performance</li>
+                </ul>
+            </div>
+            
+            <h2 class="section-title">📖 Loss Functions Explained</h2>
+            <div class="loss-function-card">
+                <h5>🔹 MSE (Mean Squared Error)</h5>
+                <p><strong>Best for:</strong> Regression tasks. Penalizes large errors heavily (squared term). Sensitive to outliers but provides smooth gradients for optimization.</p>
+            </div>
+            <div class="loss-function-card">
+                <h5>🔹 MAE (Mean Absolute Error)</h5>
+                <p><strong>Best for:</strong> Regression tasks with outliers. More robust to outliers than MSE as it doesn't square the errors. Provides constant gradient magnitude.</p>
+            </div>
+            <div class="loss-function-card">
+                <h5>🔹 Cross Entropy</h5>
+                <p><strong>Best for:</strong> Classification tasks. Measures the difference between predicted probability distributions and true labels. Standard choice for neural network classifiers.</p>
+            </div>
+            <div class="loss-function-card">
+                <h5>🔹 BCE (Binary Cross Entropy)</h5>
+                <p><strong>Best for:</strong> Binary classification (2 classes). Specialized version of cross entropy optimized for binary outcomes with sigmoid activation.</p>
+            </div>
+            <div class="loss-function-card">
+                <h5>🔹 Huber Loss</h5>
+                <p><strong>Best for:</strong> Regression with outliers. Combines benefits of MSE and MAE - quadratic for small errors, linear for large errors. Good balance of robustness and smooth gradients.</p>
+            </div>
+            
+            <h2 class="section-title">⚙️ Configure Your Experiment</h2>
+            <div class="warning">
+                <strong>⚠️ Experimental Mode:</strong> This tool allows you to intentionally use "wrong" loss functions for educational purposes. Observe what happens when you use MSE for classification or Cross-Entropy for regression!
+            </div>
         <div class="controls">
             <div class="control-group">
                 <label>Task Type:</label>
@@ -322,12 +669,6 @@ HTML_TEMPLATE = '''
             document.getElementById('summaryTable').innerHTML=tableHTML;
         }
     </script>
-
-        <div style="text-align: center; padding: 20px; color: #666; margin-top: 40px; border-top: 2px solid #eee;">
-
-    <p>Created by <strong>Mohammad Noorchenarboo</strong> |
-
-    <a href="https://www.linkedin.com/in/mnoorchenar" target="_blank" style="color: #667eea;">LinkedIn</a></p>
 </body>
 </html>
 '''

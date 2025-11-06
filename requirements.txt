@@ -1,8 +1,7 @@
 flask
-optuna
 numpy
 scikit-learn
-scikit-optimize
-tensorflow
+torch
+plotly
 gunicorn
 gevent

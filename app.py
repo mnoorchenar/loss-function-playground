@@ -9,10 +9,13 @@ import torch.nn as nn
 import torch.optim as optim
 import time
 import logging
-app=Flask(__name__)
+import os
+
+app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
-logger=logging.getLogger(__name__)
-HTML_TEMPLATE='''
+logger = logging.getLogger(__name__)
+
+HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
 <head>
@@ -328,226 +331,309 @@ HTML_TEMPLATE='''
 </body>
 </html>
 '''
+
+
 class SimpleNN(nn.Module):
-    def __init__(self,input_dim,output_dim,task_type,loss_name,n_hidden_layers,neurons_per_layer):
-        super(SimpleNN,self).__init__()
-        self.task_type=task_type
-        self.loss_name=loss_name
-        layers=[nn.Linear(input_dim,neurons_per_layer),nn.ReLU()]
-        for _ in range(n_hidden_layers-1):
-            layers.extend([nn.Linear(neurons_per_layer,neurons_per_layer),nn.ReLU()])
-        layers.append(nn.Linear(neurons_per_layer,output_dim))
-        self.model=nn.Sequential(*layers)
-    def forward(self,x):
+    def __init__(self, input_dim, output_dim, task_type, loss_name, n_hidden_layers, neurons_per_layer):
+        super(SimpleNN, self).__init__()
+        self.task_type = task_type
+        self.loss_name = loss_name
+        layers = [nn.Linear(input_dim, neurons_per_layer), nn.ReLU()]
+        for _ in range(n_hidden_layers - 1):
+            layers.extend([nn.Linear(neurons_per_layer, neurons_per_layer), nn.ReLU()])
+        layers.append(nn.Linear(neurons_per_layer, output_dim))
+        self.model = nn.Sequential(*layers)
+
+    def forward(self, x):
         return self.model(x)
+
+
 def get_loss_function(loss_name):
-    losses={'mse':nn.MSELoss(),'mae':nn.L1Loss(),'cross_entropy':nn.CrossEntropyLoss(),'sparse_categorical_crossentropy':nn.CrossEntropyLoss(),'bce':nn.BCEWithLogitsLoss(),'huber':nn.SmoothL1Loss()}
-    return losses.get(loss_name,nn.MSELoss())
-def evaluate_classification(model,X,y):
+    losses = {
+        'mse': nn.MSELoss(),
+        'mae': nn.L1Loss(),
+        'cross_entropy': nn.CrossEntropyLoss(),
+        'sparse_categorical_crossentropy': nn.CrossEntropyLoss(),
+        'bce': nn.BCEWithLogitsLoss(),
+        'huber': nn.SmoothL1Loss()
+    }
+    return losses.get(loss_name, nn.MSELoss())
+
+
+def evaluate_classification(model, X, y):
     model.eval()
     with torch.no_grad():
-        outputs=model(X)
-        if model.loss_name=='bce' and model.task_type=='binary_classification':
-            predicted=(torch.sigmoid(outputs) > 0.5).long()
+        outputs = model(X)
+        if model.loss_name == 'bce' and model.task_type == 'binary_classification':
+            predicted = (torch.sigmoid(outputs) > 0.5).long()
         else:
-            _,predicted=torch.max(outputs,1)
-    y_true=y.cpu().numpy()
-    y_pred=predicted.cpu().numpy()
-    return{'accuracy':accuracy_score(y_true,y_pred),'precision':precision_score(y_true,y_pred,average='macro',zero_division=0),'recall':recall_score(y_true,y_pred,average='macro',zero_division=0),'f1':f1_score(y_true,y_pred,average='macro',zero_division=0)}
-def evaluate_regression(model,X,y):
+            _, predicted = torch.max(outputs, 1)
+    y_true = y.cpu().numpy()
+    y_pred = predicted.cpu().numpy()
+    return {
+        'accuracy': accuracy_score(y_true, y_pred),
+        'precision': precision_score(y_true, y_pred, average='macro', zero_division=0),
+        'recall': recall_score(y_true, y_pred, average='macro', zero_division=0),
+        'f1': f1_score(y_true, y_pred, average='macro', zero_division=0)
+    }
+
+
+def evaluate_regression(model, X, y):
     model.eval()
     with torch.no_grad():
-        outputs=model(X)
-    y_true=y.cpu().numpy()
-    y_pred=outputs.cpu().numpy()
-    return{'mse':mean_squared_error(y_true,y_pred),'mae':mean_absolute_error(y_true,y_pred),'r2':r2_score(y_true,y_pred)}
-def add_outliers(X,y,n_samples,outlier_percentage,outlier_magnitude):
-    n_outliers=int(n_samples*(outlier_percentage/100))
-    if n_outliers==0:
-        return X,y
-    outlier_indices=np.random.choice(n_samples,n_outliers,replace=False)
-    X_outliers=X[outlier_indices].copy()
-    X_outliers*=outlier_magnitude
-    X[outlier_indices]=X_outliers
-    return X,y
+        outputs = model(X)
+    y_true = y.cpu().numpy()
+    y_pred = outputs.cpu().numpy()
+    return {
+        'mse': mean_squared_error(y_true, y_pred),
+        'mae': mean_absolute_error(y_true, y_pred),
+        'r2': r2_score(y_true, y_pred)
+    }
+
+
+def add_outliers(X, y, n_samples, outlier_percentage, outlier_magnitude):
+    n_outliers = int(n_samples * (outlier_percentage / 100))
+    if n_outliers == 0:
+        return X, y
+    outlier_indices = np.random.choice(n_samples, n_outliers, replace=False)
+    X_outliers = X[outlier_indices].copy()
+    X_outliers *= outlier_magnitude
+    X[outlier_indices] = X_outliers
+    return X, y
+
+
 def clean_nans(data):
     if isinstance(data, list):
         return [None if isinstance(x, float) and (np.isnan(x) or np.isinf(x)) else x for x in data]
     elif isinstance(data, dict):
         return {k: clean_nans(v) for k, v in data.items()}
     return data
+
+
 @app.route('/')
 def index():
     return render_template_string(HTML_TEMPLATE)
-@app.route('/train',methods=['POST'])
+
+
+@app.route('/train', methods=['POST'])
 def train():
     try:
-        config=request.get_json()
+        config = request.get_json()
         if not config:
             logger.error("No JSON data received")
-            return jsonify({'error':'No JSON data received'}),400
+            return jsonify({'error': 'No JSON data received'}), 400
+        
         logger.debug(f"Raw config received: {config}")
-        task_type=config.get('task_type')
-        n_samples=config.get('n_samples')
-        n_features=config.get('n_features')
-        noise_level=config.get('noise_level')
-        outlier_percentage=config.get('outlier_percentage')
-        outlier_magnitude=config.get('outlier_magnitude')
-        n_hidden_layers=config.get('n_hidden_layers')
-        neurons_per_layer=config.get('neurons_per_layer')
-        loss_functions=config.get('loss_functions')
-        epochs=config.get('epochs')
-        n_classes=config.get('n_classes')
-        if not all([task_type,n_samples,n_features,noise_level is not None,outlier_percentage is not None,outlier_magnitude,n_hidden_layers,neurons_per_layer,loss_functions,epochs]):
+        
+        task_type = config.get('task_type')
+        n_samples = config.get('n_samples')
+        n_features = config.get('n_features')
+        noise_level = config.get('noise_level')
+        outlier_percentage = config.get('outlier_percentage')
+        outlier_magnitude = config.get('outlier_magnitude')
+        n_hidden_layers = config.get('n_hidden_layers')
+        neurons_per_layer = config.get('neurons_per_layer')
+        loss_functions = config.get('loss_functions')
+        epochs = config.get('epochs')
+        n_classes = config.get('n_classes')
+        
+        if not all([task_type, n_samples, n_features, noise_level is not None, 
+                   outlier_percentage is not None, outlier_magnitude, n_hidden_layers, 
+                   neurons_per_layer, loss_functions, epochs]):
             logger.error("Missing required parameters")
-            return jsonify({'error':'Missing required parameters'}),400
-        if task_type not in ['regression','binary_classification','multi_classification']:
+            return jsonify({'error': 'Missing required parameters'}), 400
+        
+        if task_type not in ['regression', 'binary_classification', 'multi_classification']:
             logger.error(f"Invalid task_type: {task_type}")
-            return jsonify({'error':'Invalid task_type'}),400
-        if not isinstance(n_samples,int) or n_samples<100 or n_samples>10000:
+            return jsonify({'error': 'Invalid task_type'}), 400
+        
+        if not isinstance(n_samples, int) or n_samples < 100 or n_samples > 10000:
             logger.error(f"Invalid n_samples: {n_samples}")
-            return jsonify({'error':'n_samples must be an integer between 100 and 10000'}),400
-        if not isinstance(n_features,int) or n_features<2 or n_features>50:
+            return jsonify({'error': 'n_samples must be an integer between 100 and 10000'}), 400
+        
+        if not isinstance(n_features, int) or n_features < 2 or n_features > 50:
             logger.error(f"Invalid n_features: {n_features}")
-            return jsonify({'error':'n_features must be an integer between 2 and 50'}),400
+            return jsonify({'error': 'n_features must be an integer between 2 and 50'}), 400
+        
         try:
-            noise_level=float(noise_level)
-            if noise_level<0 or noise_level>100:
+            noise_level = float(noise_level)
+            if noise_level < 0 or noise_level > 100:
                 logger.error(f"Invalid noise_level: {noise_level}")
-                return jsonify({'error':'noise_level must be a number between 0 and 100'}),400
-        except (TypeError,ValueError):
+                return jsonify({'error': 'noise_level must be a number between 0 and 100'}), 400
+        except (TypeError, ValueError):
             logger.error(f"Invalid noise_level type or value: {noise_level}")
-            return jsonify({'error':'noise_level must be a valid number'}),400
+            return jsonify({'error': 'noise_level must be a valid number'}), 400
+        
         try:
-            outlier_percentage=float(outlier_percentage)
-            if outlier_percentage<0 or outlier_percentage>20:
+            outlier_percentage = float(outlier_percentage)
+            if outlier_percentage < 0 or outlier_percentage > 20:
                 logger.error(f"Invalid outlier_percentage: {outlier_percentage}")
-                return jsonify({'error':'outlier_percentage must be a number between 0 and 20'}),400
-        except (TypeError,ValueError):
+                return jsonify({'error': 'outlier_percentage must be a number between 0 and 20'}), 400
+        except (TypeError, ValueError):
             logger.error(f"Invalid outlier_percentage type or value: {outlier_percentage}")
-            return jsonify({'error':'outlier_percentage must be a valid number'}),400
+            return jsonify({'error': 'outlier_percentage must be a valid number'}), 400
+        
         try:
-            outlier_magnitude=float(outlier_magnitude)
-            if outlier_magnitude<1 or outlier_magnitude>100:
+            outlier_magnitude = float(outlier_magnitude)
+            if outlier_magnitude < 1 or outlier_magnitude > 100:
                 logger.error(f"Invalid outlier_magnitude: {outlier_magnitude}")
-                return jsonify({'error':'outlier_magnitude must be a number between 1 and 100'}),400
-        except (TypeError,ValueError):
+                return jsonify({'error': 'outlier_magnitude must be a number between 1 and 100'}), 400
+        except (TypeError, ValueError):
             logger.error(f"Invalid outlier_magnitude type or value: {outlier_magnitude}")
-            return jsonify({'error':'outlier_magnitude must be a valid number'}),400
-        if not isinstance(n_hidden_layers,int) or n_hidden_layers<1 or n_hidden_layers>5:
+            return jsonify({'error': 'outlier_magnitude must be a valid number'}), 400
+        
+        if not isinstance(n_hidden_layers, int) or n_hidden_layers < 1 or n_hidden_layers > 5:
             logger.error(f"Invalid n_hidden_layers: {n_hidden_layers}")
-            return jsonify({'error':'n_hidden_layers must be an integer between 1 and 5'}),400
-        if not isinstance(neurons_per_layer,int) or neurons_per_layer<8 or neurons_per_layer>128:
+            return jsonify({'error': 'n_hidden_layers must be an integer between 1 and 5'}), 400
+        
+        if not isinstance(neurons_per_layer, int) or neurons_per_layer < 8 or neurons_per_layer > 128:
             logger.error(f"Invalid neurons_per_layer: {neurons_per_layer}")
-            return jsonify({'error':'neurons_per_layer must be an integer between 8 and 128'}),400
-        if not isinstance(epochs,int) or epochs<10 or epochs>500:
+            return jsonify({'error': 'neurons_per_layer must be an integer between 8 and 128'}), 400
+        
+        if not isinstance(epochs, int) or epochs < 10 or epochs > 500:
             logger.error(f"Invalid epochs: {epochs}")
-            return jsonify({'error':'epochs must be an integer between 10 and 500'}),400
-        if task_type=='multi_classification' and (not isinstance(n_classes,int) or n_classes<3 or n_classes>10):
+            return jsonify({'error': 'epochs must be an integer between 10 and 500'}), 400
+        
+        if task_type == 'multi_classification' and (not isinstance(n_classes, int) or n_classes < 3 or n_classes > 10):
             logger.error(f"Invalid n_classes: {n_classes}")
-            return jsonify({'error':'n_classes must be an integer between 3 and 10 for multi_classification'}),400
-        if not isinstance(loss_functions,list) or not loss_functions:
+            return jsonify({'error': 'n_classes must be an integer between 3 and 10 for multi_classification'}), 400
+        
+        if not isinstance(loss_functions, list) or not loss_functions:
             logger.error(f"Invalid loss_functions: {loss_functions}")
-            return jsonify({'error':'loss_functions must be a non-empty list'}),400
-        valid_losses=['mse','mae','cross_entropy','sparse_categorical_crossentropy','bce','huber']
+            return jsonify({'error': 'loss_functions must be a non-empty list'}), 400
+        
+        valid_losses = ['mse', 'mae', 'cross_entropy', 'sparse_categorical_crossentropy', 'bce', 'huber']
         if not all(loss in valid_losses for loss in loss_functions):
             logger.error(f"Invalid loss functions: {loss_functions}")
-            return jsonify({'error':f'loss_functions must be a subset of {valid_losses}'}),400
+            return jsonify({'error': f'loss_functions must be a subset of {valid_losses}'}), 400
+        
         logger.debug(f"Validated config: {config}")
-        if task_type=='regression':
-            X,y=make_regression(n_samples=n_samples,n_features=n_features,noise=noise_level,random_state=42)
-            output_dim=1
-            y=y.reshape(-1,1)
+        
+        if task_type == 'regression':
+            X, y = make_regression(n_samples=n_samples, n_features=n_features, noise=noise_level, random_state=42)
+            output_dim = 1
+            y = y.reshape(-1, 1)
         else:
-            if task_type=='binary_classification':
-                n_classes=2
+            if task_type == 'binary_classification':
+                n_classes = 2
             else:
-                n_classes=n_classes
-            flip_y=min(1.0,max(0.0,noise_level/100))
-            X,y=make_classification(n_samples=n_samples,n_features=n_features,n_informative=max(2,n_features//2),n_classes=n_classes,n_clusters_per_class=1,random_state=42,flip_y=flip_y)
-            output_dim=n_classes
-        X,y=add_outliers(X,y,n_samples,outlier_percentage,outlier_magnitude)
-        X_train,X_val,y_train,y_val=train_test_split(X,y,test_size=0.2,random_state=42)
-        scaler=StandardScaler()
-        X_train=scaler.fit_transform(X_train)
-        X_val=scaler.transform(X_val)
-        X_train_t=torch.FloatTensor(X_train)
-        X_val_t=torch.FloatTensor(X_val)
-        if task_type=='regression':
-            y_train_t=torch.FloatTensor(y_train)
-            y_val_t=torch.FloatTensor(y_val)
+                n_classes = n_classes
+            flip_y = min(1.0, max(0.0, noise_level / 100))
+            X, y = make_classification(n_samples=n_samples, n_features=n_features, 
+                                      n_informative=max(2, n_features // 2), n_classes=n_classes, 
+                                      n_clusters_per_class=1, random_state=42, flip_y=flip_y)
+            output_dim = n_classes
+        
+        X, y = add_outliers(X, y, n_samples, outlier_percentage, outlier_magnitude)
+        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+        X_val = scaler.transform(X_val)
+        
+        X_train_t = torch.FloatTensor(X_train)
+        X_val_t = torch.FloatTensor(X_val)
+        
+        if task_type == 'regression':
+            y_train_t = torch.FloatTensor(y_train)
+            y_val_t = torch.FloatTensor(y_val)
         else:
-            y_train_t=torch.LongTensor(y_train)
-            y_val_t=torch.LongTensor(y_val)
-        results={}
+            y_train_t = torch.LongTensor(y_train)
+            y_val_t = torch.LongTensor(y_val)
+        
+        results = {}
+        
         for loss_name in loss_functions:
-            if task_type=='binary_classification' and loss_name=='bce':
-                output_dim_loss=1
+            if task_type == 'binary_classification' and loss_name == 'bce':
+                output_dim_loss = 1
             else:
-                output_dim_loss=output_dim
-            model=SimpleNN(n_features,output_dim_loss,task_type,loss_name,n_hidden_layers,neurons_per_layer)
-            criterion=get_loss_function(loss_name)
-            optimizer=optim.Adam(model.parameters(),lr=0.001)
-            train_losses=[]
-            val_losses=[]
-            start_time=time.time()
-            convergence_epoch=None
+                output_dim_loss = output_dim
+            
+            model = SimpleNN(n_features, output_dim_loss, task_type, loss_name, n_hidden_layers, neurons_per_layer)
+            criterion = get_loss_function(loss_name)
+            optimizer = optim.Adam(model.parameters(), lr=0.001)
+            
+            train_losses = []
+            val_losses = []
+            start_time = time.time()
+            convergence_epoch = None
+            
             for epoch in range(epochs):
                 model.train()
                 optimizer.zero_grad()
-                outputs=model(X_train_t)
+                outputs = model(X_train_t)
+                
                 try:
-                    if task_type!='regression' and loss_name in ['cross_entropy','sparse_categorical_crossentropy']:
-                        loss=criterion(outputs,y_train_t)
-                    elif task_type=='binary_classification' and loss_name=='bce':
-                        loss=criterion(outputs,y_train_t.float())
+                    if task_type != 'regression' and loss_name in ['cross_entropy', 'sparse_categorical_crossentropy']:
+                        loss = criterion(outputs, y_train_t)
+                    elif task_type == 'binary_classification' and loss_name == 'bce':
+                        loss = criterion(outputs, y_train_t.float())
                     else:
-                        if task_type!='regression':
-                            loss=criterion(outputs.mean(dim=1,keepdim=True),y_train_t.float().unsqueeze(1))
+                        if task_type != 'regression':
+                            loss = criterion(outputs.mean(dim=1, keepdim=True), y_train_t.float().unsqueeze(1))
                         else:
-                            loss=criterion(outputs,y_train_t)
+                            loss = criterion(outputs, y_train_t)
+                    
                     loss.backward()
-                    torch.nn.utils.clip_grad_norm_(model.parameters(),max_norm=1.0)
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                     optimizer.step()
                 except Exception as e:
                     logger.error(f"Error in training loss computation for {loss_name} at epoch {epoch}: {str(e)}")
-                    loss=torch.tensor(0.0)
+                    loss = torch.tensor(0.0)
+                
                 model.eval()
                 with torch.no_grad():
-                    val_outputs=model(X_val_t)
+                    val_outputs = model(X_val_t)
                     try:
-                        if task_type!='regression' and loss_name in ['cross_entropy','sparse_categorical_crossentropy']:
-                            val_loss=criterion(val_outputs,y_val_t)
-                        elif task_type=='binary_classification' and loss_name=='bce':
-                            val_loss=criterion(val_outputs,y_val_t.float())
+                        if task_type != 'regression' and loss_name in ['cross_entropy', 'sparse_categorical_crossentropy']:
+                            val_loss = criterion(val_outputs, y_val_t)
+                        elif task_type == 'binary_classification' and loss_name == 'bce':
+                            val_loss = criterion(val_outputs, y_val_t.float())
                         else:
-                            if task_type!='regression':
-                                val_loss=criterion(val_outputs.mean(dim=1,keepdim=True),y_val_t.float().unsqueeze(1))
+                            if task_type != 'regression':
+                                val_loss = criterion(val_outputs.mean(dim=1, keepdim=True), y_val_t.float().unsqueeze(1))
                             else:
-                                val_loss=criterion(val_outputs,y_val_t)
+                                val_loss = criterion(val_outputs, y_val_t)
                     except Exception as e:
                         logger.error(f"Error in validation loss computation for {loss_name} at epoch {epoch}: {str(e)}")
-                        val_loss=torch.tensor(0.0)
+                        val_loss = torch.tensor(0.0)
+                
                 train_losses.append(float(loss.item()) if not torch.isnan(loss) else 0.0)
                 val_losses.append(float(val_loss.item()) if not torch.isnan(val_loss) else 0.0)
-                if epoch>10 and convergence_epoch is None and not np.isnan(val_losses[-1]):
-                    recent_losses=val_losses[-5:]
-                    if len(recent_losses)==5:
-                        loss_change=abs(recent_losses[-1]-recent_losses[0])/(abs(recent_losses[0])+1e-8)
-                        if loss_change<0.001:
-                            convergence_epoch=epoch
-            total_time=time.time()-start_time
-            if task_type=='regression':
-                metrics=evaluate_regression(model,X_val_t,y_val_t)
+                
+                if epoch > 10 and convergence_epoch is None and not np.isnan(val_losses[-1]):
+                    recent_losses = val_losses[-5:]
+                    if len(recent_losses) == 5:
+                        loss_change = abs(recent_losses[-1] - recent_losses[0]) / (abs(recent_losses[0]) + 1e-8)
+                        if loss_change < 0.001:
+                            convergence_epoch = epoch
+            
+            total_time = time.time() - start_time
+            
+            if task_type == 'regression':
+                metrics = evaluate_regression(model, X_val_t, y_val_t)
             else:
-                metrics=evaluate_classification(model,X_val_t,y_val_t)
-            results[loss_name]={'train_losses':train_losses,'val_losses':val_losses,'total_time':total_time,'convergence_epoch':convergence_epoch if convergence_epoch else epochs,'metrics':metrics}
+                metrics = evaluate_classification(model, X_val_t, y_val_t)
+            
+            results[loss_name] = {
+                'train_losses': train_losses,
+                'val_losses': val_losses,
+                'total_time': total_time,
+                'convergence_epoch': convergence_epoch if convergence_epoch else epochs,
+                'metrics': metrics
+            }
+        
         logger.debug("Training completed successfully")
         return jsonify(clean_nans(results))
+    
     except Exception as e:
         logger.error(f"Error in /train route: {str(e)}")
-        return jsonify({'error':f'Server error: {str(e)}'}),500
-if __name__=='__main__':
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
+
+
+if __name__ == '__main__':
+    # Get port from environment variable (Hugging Face uses PORT env var)
+    port = int(os.environ.get('PORT', 7860))
     print("🚀 Starting ML Loss Function Playground...")
-    print("📍 Open http://localhost:5000 in your browser")
-    app.run(debug=True,port=5000)
+    print(f"📍 Server will be available on port {port}")
+    # Bind to 0.0.0.0 to allow external access
+    app.run(host='0.0.0.0', port=port, debug=False)

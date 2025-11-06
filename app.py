@@ -21,6 +21,8 @@ HTML_TEMPLATE = '''
 <head>
     <title>ML Loss Function Playground - Interactive Learning Tool</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -61,8 +63,38 @@ HTML_TEMPLATE = '''
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
             overflow: hidden;
         }
-        .content-wrapper {
+        .tab-navigation {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .tab-button {
+            flex: 1;
+            padding: 20px;
+            background: transparent;
+            border: none;
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+        .tab-button:hover {
+            background: #fff;
+            color: #667eea;
+        }
+        .tab-button.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+        .tab-content {
+            display: none;
             padding: 40px;
+        }
+        .tab-content.active {
+            display: block;
         }
         .info-section {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
@@ -296,21 +328,39 @@ HTML_TEMPLATE = '''
         }
         .loss-function-card {
             background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 15px 0;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border-left: 4px solid #667eea;
+            padding: 25px;
+            border-radius: 12px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-left: 5px solid #667eea;
         }
         .loss-function-card h5 {
             color: #667eea;
-            margin-bottom: 8px;
-            font-size: 1.1em;
+            margin-bottom: 15px;
+            font-size: 1.3em;
         }
         .loss-function-card p {
-            color: #666;
-            line-height: 1.6;
-            font-size: 0.95em;
+            color: #555;
+            line-height: 1.8;
+            font-size: 1em;
+            margin-bottom: 10px;
+        }
+        .loss-function-card .formula {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+        .loss-function-card .use-case {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border-left: 4px solid #4caf50;
+        }
+        .loss-function-card .use-case strong {
+            color: #2e7d32;
         }
         .footer {
             background: linear-gradient(135deg, #2d3436 0%, #000000 100%);
@@ -341,6 +391,22 @@ HTML_TEMPLATE = '''
             padding-top: 15px;
             border-top: 1px solid rgba(255,255,255,0.2);
         }
+        .concept-card {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            padding: 25px;
+            border-radius: 12px;
+            margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .concept-card h4 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .concept-card p {
+            color: #555;
+            line-height: 1.8;
+        }
     </style>
 </head>
 <body>
@@ -348,9 +414,47 @@ HTML_TEMPLATE = '''
         <div class="header-banner">
             <h1>🧪 ML Loss Function Playground</h1>
             <p>Interactive Educational Tool for Understanding Machine Learning Loss Functions</p>
+            <p style="font-size: 0.9em; margin-top: 10px; opacity: 0.9;">Developed by Mohammad Noorchenarboo</p>
         </div>
         
-        <div class="content-wrapper">
+        <div class="tab-navigation">
+            <button class="tab-button active" onclick="switchTab('playground')">🎮 Playground</button>
+            <button class="tab-button" onclick="switchTab('documentation')">📚 Documentation & Formulas</button>
+        </div>
+        
+        <!-- PLAYGROUND TAB -->
+        <div id="playground-tab" class="tab-content active">
+            <div class="info-section">
+                <h3>📚 What You'll Learn</h3>
+                <ul>
+                    <li><strong>Loss Function Comparison:</strong> See how different loss functions perform on the same dataset</li>
+                    <li><strong>Convergence Behavior:</strong> Understand which loss functions converge faster for different tasks</li>
+                    <li><strong>Training Dynamics:</strong> Visualize how training and validation losses evolve over epochs</li>
+                    <li><strong>Robustness Testing:</strong> Experiment with noise, outliers, and mismatched loss functions</li>
+                    <li><strong>Performance Metrics:</strong> Compare accuracy, precision, recall, F1-score for classification or MSE, MAE, R² for regression</li>
+                </ul>
+            </div>
+            
+            <div class="educational-info">
+                <h4>💡 Educational Tips</h4>
+                <p>Try intentionally mismatching loss functions with tasks (e.g., using MSE for classification) to observe:</p>
+                <ul style="margin-top: 10px; list-style: none; padding-left: 0;">
+                    <li style="padding: 5px 0 5px 20px; position: relative;">
+                        <span style="position: absolute; left: 0;">•</span> How training becomes unstable or slow
+                    </li>
+                    <li style="padding: 5px 0 5px 20px; position: relative;">
+                        <span style="position: absolute; left: 0;">•</span> Why choosing the right loss function matters
+                    </li>
+                    <li style="padding: 5px 0 5px 20px; position: relative;">
+                        <span style="position: absolute; left: 0;">•</span> The impact on convergence speed and final performance
+                    </li>
+                </ul>
+            </div>
+            
+            <h2 class="section-title">⚙️ Configure Your Experiment</h2>
+            <div class="warning">
+                <strong>⚠️ Experimental Mode:</strong> This tool allows you to intentionally use "wrong" loss functions for educational purposes. Observe what happens when you use MSE for classification or Cross-Entropy for regression!
+            </div>
             <div class="info-section">
                 <h3>📚 What You'll Learn</h3>
                 <ul>
@@ -460,6 +564,25 @@ HTML_TEMPLATE = '''
         <div id="results"></div>
     </div>
     <script>
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+            event.target.classList.add('active');
+            
+            // Render MathJax if switching to documentation
+            if (tabName === 'documentation' && window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+        
         function updateLossOptions(){
             const taskType=document.getElementById('task_type').value;
             const checkboxes=document.querySelectorAll('#loss_functions input');

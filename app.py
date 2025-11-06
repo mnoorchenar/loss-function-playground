@@ -415,6 +415,12 @@ def index():
     return render_template_string(HTML_TEMPLATE)
 
 
+@app.route('/health')
+def health():
+    """Health check endpoint for Hugging Face Spaces"""
+    return jsonify({'status': 'healthy'}), 200
+
+
 @app.route('/train', methods=['POST'])
 def train():
     try:
@@ -635,5 +641,6 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 7860))
     print("🚀 Starting ML Loss Function Playground...")
     print(f"📍 Server will be available on port {port}")
-    # Bind to 0.0.0.0 to allow external access
-    app.run(host='0.0.0.0', port=port, debug=False)
+    print(f"🌐 Health check available at http://0.0.0.0:{port}/health")
+    # Bind to 0.0.0.0 to allow external access, disable reloader for Hugging Face
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False, threaded=True)

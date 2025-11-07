@@ -46,10 +46,10 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         label { font-weight: 600; margin-bottom: 8px; display: block; }
         input, select { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; }
         input:focus, select:focus { border-color: #667eea; outline: none; }
-        .checkbox-group { display: flex; flex-wrap: wrap; gap: 15px; background: #f8f9fa; padding: 15px; border-radius: 10px; justify-content: flex-start; }
-        .checkbox-group label { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 5px 10px; border-radius: 6px; transition: background 0.2s; white-space: nowrap; }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; background: #f8f9fa; padding: 10px; border-radius: 10px; justify-content: flex-start; }
+        .checkbox-group label { display: flex; align-items: center; gap: 5px; cursor: pointer; padding: 5px; border-radius: 6px; transition: background 0.2s; white-space: nowrap; }
         .checkbox-group label:hover { background: #e0e0e0; }
-        .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; }
+        .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; margin: 0; }
         button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 18px 40px; border: none; border-radius: 10px; font-size: 18px; font-weight: 600; margin: 30px auto; display: block; width: fit-content; }
         button:disabled { background: #ccc; cursor: not-allowed; }
         #loading { display: none; text-align: center; padding: 40px; }
@@ -323,7 +323,7 @@ function displayResults(data, epochs, taskType) {
         ], {
             title: `${lossName.toUpperCase()} Train and Val Loss`,
             xaxis: {title: 'Epoch'},
-            yaxis: {title: 'Loss', type: 'log'},
+            yaxis: {title: 'Loss', type: 'linear'},  // Changed to linear for better visibility of small values
             height: 400
         });
     });
@@ -438,8 +438,8 @@ def add_outliers(X, y, n_samples, perc, mag):
     X[idx] *= mag
     if y.ndim == 2:  # regression
         y[idx] *= mag
-    else:  # classification flip labels
-        if y.max() > 1:  # multi-class, randomize
+    else:  # classification
+        if y.max() > 1:  # multi-class
             y[idx] = np.random.randint(0, y.max() + 1, size=n)
         else:  # binary
             y[idx] = 1 - y[idx]
@@ -523,49 +523,67 @@ def train():
                 opt.zero_grad()
                 outputs = model(X_train_t)
 
+                loss = None
                 try:
                     if loss_name in ['cross_entropy', 'sparse_categorical_crossentropy'] and task != 'regression':
                         loss = criterion(outputs, y_train_t)
                     elif loss_name == 'bce' and task == 'binary_classification':
-                        loss = criterion(outputs, y_train_t.float())
+                        loss = criterion(outputs, y_train_t.float().unsqueeze(1))
                     else:
-                        # Fallback for mismatched
+                        # Mismatched cases
                         if task == 'regression':
-                            loss = criterion(outputs, y_train_t)
+                            if loss_name in ['cross_entropy', 'sparse_categorical_crossentropy']:
+                                # For mismatched CE on regression, treat as binary for demo
+                                logits = torch.cat([outputs, -outputs], dim=1)  # Fake 2 classes
+                                targets = (y_train_t > 0).long().squeeze(1)
+                                loss = criterion(logits, targets)
+                            elif loss_name == 'bce':
+                                loss = criterion(outputs, (y_train_t > 0).float())
+                            else:
+                                loss = criterion(outputs, y_train_t)
                         else:
                             loss = criterion(outputs.mean(dim=1, keepdim=True), y_train_t.float().unsqueeze(1))
-                    loss.backward()
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-                    opt.step()
+                    if loss is not None:
+                        loss.backward()
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                        opt.step()
                 except Exception as e:
                     logger.warning(f"Loss computation or backward failed for {loss_name} on {task}: {str(e)}")
-                    loss = torch.tensor(float('nan'))  # Use NaN to indicate failure in plots
+                    loss = torch.tensor(float('nan'))
 
                 model.eval()
                 with torch.no_grad():
                     val_outputs = model(X_val_t)
+                    val_loss = None
                     try:
                         if loss_name in ['cross_entropy', 'sparse_categorical_crossentropy'] and task != 'regression':
                             val_loss = criterion(val_outputs, y_val_t)
                         elif loss_name == 'bce' and task == 'binary_classification':
-                            val_loss = criterion(val_outputs, y_val_t.float())
+                            val_loss = criterion(val_outputs, y_val_t.float().unsqueeze(1))
                         else:
                             if task == 'regression':
-                                val_loss = criterion(val_outputs, y_val_t)
+                                if loss_name in ['cross_entropy', 'sparse_categorical_crossentropy']:
+                                    logits = torch.cat([val_outputs, -val_outputs], dim=1)
+                                    targets = (y_val_t > 0).long().squeeze(1)
+                                    val_loss = criterion(logits, targets)
+                                elif loss_name == 'bce':
+                                    val_loss = criterion(val_outputs, (y_val_t > 0).float())
+                                else:
+                                    val_loss = criterion(val_outputs, y_val_t)
                             else:
                                 val_loss = criterion(val_outputs.mean(dim=1, keepdim=True), y_val_t.float().unsqueeze(1))
                     except Exception as e:
                         logger.warning(f"Val loss failed for {loss_name} on {task}: {str(e)}")
                         val_loss = torch.tensor(float('nan'))
 
-                train_losses.append(float(loss.item()) if isinstance(loss, torch.Tensor) else float('nan'))
-                val_losses.append(float(val_loss.item()) if isinstance(val_loss, torch.Tensor) else float('nan'))
+                train_losses.append(float(loss.item()) if loss is not None and not torch.isnan(loss) else float('nan'))
+                val_losses.append(float(val_loss.item()) if val_loss is not None and not torch.isnan(val_loss) else float('nan'))
 
                 if epoch > 10 and convergence_epoch is None:
                     recent_val = val_losses[-5:]
                     if len(recent_val) == 5 and all(not np.isnan(r) for r in recent_val):
                         if abs(recent_val[-1] - recent_val[0]) / (abs(recent_val[0]) + 1e-8) < 0.001:
-                            convergence_epoch = epoch + 1  # 1-indexed
+                            convergence_epoch = epoch + 1
 
             total_time = time.time() - start
             if task == 'regression':

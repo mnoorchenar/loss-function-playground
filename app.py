@@ -46,8 +46,10 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         label { font-weight: 600; margin-bottom: 8px; display: block; }
         input, select { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; }
         input:focus, select:focus { border-color: #667eea; outline: none; }
-        .checkbox-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; background: #f8f9fa; padding: 25px; border-radius: 10px; }
-        .checkbox-group label { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 15px; background: #f8f9fa; padding: 15px; border-radius: 10px; justify-content: flex-start; }
+        .checkbox-group label { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 5px 10px; border-radius: 6px; transition: background 0.2s; white-space: nowrap; }
+        .checkbox-group label:hover { background: #e0e0e0; }
+        .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; }
         button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 18px 40px; border: none; border-radius: 10px; font-size: 18px; font-weight: 600; margin: 30px auto; display: block; width: fit-content; }
         button:disabled { background: #ccc; cursor: not-allowed; }
         #loading { display: none; text-align: center; padding: 40px; }
@@ -197,26 +199,26 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             <p>Combines MSE and MAE. Robust + smooth.</p>
         </div>
 
-        <!-- MOVED: What You'll Learn -->
-        <div class="info-section" style="margin-top: 40px;">
+        <!-- What You'll Learn -->
+        <div class="info-section" style="margin-top: 40px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 25px; border-radius: 12px;">
             <h3>What You'll Learn</h3>
-            <ul style="columns: 2; gap: 20px; margin-top: 10px;">
-                <li>Compare loss functions on same dataset</li>
-                <li>See convergence speed & stability</li>
-                <li>Experiment with noise & outliers</li>
-                <li>Try mismatched losses (educational!)</li>
+            <ul style="list-style-type: disc; padding-left: 20px; margin-top: 10px;">
+                <li>Compare loss functions on the same dataset</li>
+                <li>See convergence speed and stability</li>
+                <li>Experiment with noise and outliers</li>
+                <li>Try mismatched loss functions (educational!)</li>
             </ul>
         </div>
     </div>
 
-    <!-- FOOTER -->
+    <!-- Footer -->
     <div class="footer">
         <p>
             <strong>© 2025 Mohammad Noorchenarboo</strong> |
             <a href="https://www.linkedin.com/in/mnoorchenar" target="_blank">LinkedIn Profile</a>
         </p>
         <p style="margin-top: 10px; font-size: 0.85em;">
-            Copyright Notice: All rights reserved. Unauthorized copying, reproduction, or distribution of this application is strictly prohibited.
+            ⚖️ <strong>Copyright Notice:</strong> All rights reserved. Unauthorized copying, reproduction, or distribution of this application is strictly prohibited.
         </p>
         <p style="margin-top: 8px; font-size: 0.8em; opacity: 0.8;">
             This application is provided for educational and research purposes only.
@@ -225,26 +227,26 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
 </div>
 
 <script>
-function switchTab(tab) {
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
-    document.getElementById(tab + '-tab').classList.add('active');
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(tabName + '-tab').classList.add('active');
     event.target.classList.add('active');
-    if (tab === 'documentation' && window.MathJax) {
+    if (tabName === 'documentation' && window.MathJax) {
         MathJax.typesetPromise();
     }
 }
 
 function updateLossOptions() {
-    const task = document.getElementById('task_type').value;
-    document.getElementById('n_classes_group').style.display = task === 'multi_classification' ? 'block' : 'none';
-    const checks = document.querySelectorAll('#loss_functions input');
-    checks.forEach(c => c.checked = false);
-    if (task === 'regression') {
+    const taskType = document.getElementById('task_type').value;
+    document.getElementById('n_classes_group').style.display = (taskType === 'multi_classification') ? 'block' : 'none';
+    const checkboxes = document.querySelectorAll('#loss_functions input');
+    checkboxes.forEach(cb => cb.checked = false);
+    if (taskType === 'regression') {
         document.querySelector('input[value="mse"]').checked = true;
     } else {
         document.querySelector('input[value="cross_entropy"]').checked = true;
-        if (task === 'binary_classification') {
+        if (taskType === 'binary_classification') {
             document.querySelector('input[value="bce"]').checked = true;
         }
     }
@@ -261,86 +263,117 @@ async function trainModels() {
         n_hidden_layers: parseInt(document.getElementById('n_hidden_layers').value),
         neurons_per_layer: parseInt(document.getElementById('neurons_per_layer').value),
         epochs: parseInt(document.getElementById('epochs').value),
-        loss_functions: Array.from(document.querySelectorAll('#loss_functions input:checked')).map(c => c.value)
+        loss_functions: Array.from(document.querySelectorAll('#loss_functions input:checked')).map(cb => cb.value)
     };
     if (config.task_type === 'multi_classification') {
         config.n_classes = parseInt(document.getElementById('n_classes').value);
     }
-    if (config.loss_functions.length === 0) { alert('Select at least one loss'); return; }
+    if (config.loss_functions.length === 0) {
+        alert('Please select at least one loss function');
+        return;
+    }
 
     document.getElementById('trainBtn').disabled = true;
     document.getElementById('loading').style.display = 'block';
     document.getElementById('results').innerHTML = '';
 
     try {
-        const res = await fetch('/train', {
+        const response = await fetch('/train', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(config)
         });
-        const data = await res.json();
+        const data = await response.json();
         if (data.error) throw new Error(data.error);
         displayResults(data, config.epochs, config.task_type);
-    } catch (e) {
-        document.getElementById('results').innerHTML = `<div style="background:#fee; color:#c66; padding:20px; border-radius:8px;">Error: ${e.message}</div>`;
+    } catch (error) {
+        document.getElementById('results').innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
     } finally {
         document.getElementById('trainBtn').disabled = false;
         document.getElementById('loading').style.display = 'none';
     }
 }
 
-function displayResults(data, epochs, task) {
-    let html = '<h2>Loss Curves</h2>';
-    Object.keys(data).forEach(name => {
-        html += `<div class="plot-container"><h3>${name.toUpperCase()}</h3><div id="plot_${name}"></div></div>`;
+function displayResults(data, epochs, taskType) {
+    let html = '<h2 class="section-title">Results</h2>';
+    Object.keys(data).forEach(lossName => {
+        html += `
+            <div class="plot-container">
+                <h3>${lossName.toUpperCase()} Loss</h3>
+                <div id="plot_${lossName}"></div>
+            </div>
+        `;
     });
-    html += `<div class="plot-container"><h3>Training Time</h3><div id="timePlot"></div></div>`;
-    html += `<h2>Metrics</h2><table class="summary-table" id="metricsTable"></table>`;
+    html += `
+        <div class="plot-container">
+            <h3>Total Training Time</h3>
+            <div id="timePlot"></div>
+        </div>
+        <h2 class="section-title">Performance Metrics</h2>
+        <table class="summary-table" id="summaryTable"></table>
+    `;
     document.getElementById('results').innerHTML = html;
 
-    Object.keys(data).forEach(name => {
-        const d = data[name];
+    Object.keys(data).forEach(lossName => {
+        const d = data[lossName];
         const x = Array.from({length: epochs}, (_, i) => i + 1);
-        Plotly.newPlot(`plot_${name}`, [
-            { x, y: d.train_losses, name: 'Train Loss', line: { color: '#667eea', width: 2 } },
-            { x, y: d.val_losses, name: 'Val Loss', line: { color: '#f5576c', width: 2, dash: 'dot' } }
+        Plotly.newPlot(`plot_${lossName}`, [
+            { x, y: d.train_losses, name: 'Train Loss', line: {color: '#667eea', width: 2} },
+            { x, y: d.val_losses, name: 'Val Loss', line: {color: '#f5576c', width: 2, dash: 'dot'} }
         ], {
-            title: `${name.toUpperCase()} Loss`,
-            xaxis: { title: 'Epoch' },
-            yaxis: { title: 'Loss', type: 'log' },
+            title: `${lossName.toUpperCase()} Train and Val Loss`,
+            xaxis: {title: 'Epoch'},
+            yaxis: {title: 'Loss', type: 'log'},
             height: 400
         });
     });
 
-    const times = Object.keys(data).map(k => data[k].total_time);
+    const lossNames = Object.keys(data);
+    const times = lossNames.map(name => data[name].total_time);
     Plotly.newPlot('timePlot', [{
-        x: Object.keys(data),
+        x: lossNames,
         y: times,
         type: 'bar',
-        marker: { color: '#667eea' }
+        marker: {color: '#667eea'}
     }], {
-        title: 'Training Time per Loss',
-        xaxis: { title: 'Loss Function' },
-        yaxis: { title: 'Time (s)' },
+        title: 'Total Training Time per Loss Function',
+        xaxis: {title: 'Loss Function'},
+        yaxis: {title: 'Time (seconds)'},
         height: 400
     });
 
-    let table = '<tr><th>Loss</th><th>Converged</th><th>Time (s)</th>';
-    if (task === 'regression') table += '<th>MSE</th><th>MAE</th><th>R²</th></tr>';
-    else table += '<th>Acc</th><th>Prec</th><th>Rec</th><th>F1</th></tr>';
+    let tableHTML = '<tr><th>Loss Function</th><th>Convergence Epoch</th><th>Total Time (s)</th>';
+    if (taskType === 'regression') {
+        tableHTML += '<th>MSE</th><th>MAE</th><th>R²</th></tr>';
+    } else {
+        tableHTML += '<th>Accuracy</th><th>Precision</th><th>Recall</th><th>F1 Score</th></tr>';
+    }
 
-    Object.keys(data).forEach(name => {
-        const m = data[name].metrics;
-        const conv = data[name].convergence_epoch;
-        table += `<tr><td><strong>${name}</strong></td><td>${conv}</td><td>${data[name].total_time.toFixed(2)}</td>`;
-        if (task === 'regression') {
-            table += `<td>${m.mse.toFixed(4)}</td><td>${m.mae.toFixed(4)}</td><td>${m.r2.toFixed(4)}</td>`;
+    Object.keys(data).forEach(lossName => {
+        const result = data[lossName];
+        const metrics = result.metrics;
+        tableHTML += `<tr>
+            <td><strong>${lossName}</strong></td>
+            <td>${result.convergence_epoch}</td>
+            <td>${result.total_time.toFixed(3)}</td>
+        `;
+        if (taskType === 'regression') {
+            tableHTML += `
+                <td>${metrics.mse.toFixed(4)}</td>
+                <td>${metrics.mae.toFixed(4)}</td>
+                <td>${metrics.r2.toFixed(4)}</td>
+            `;
         } else {
-            table += `<td>${m.accuracy.toFixed(4)}</td><td>${m.precision.toFixed(4)}</td><td>${m.recall.toFixed(4)}</td><td>${m.f1.toFixed(4)}</td>`;
+            tableHTML += `
+                <td>${metrics.accuracy.toFixed(4)}</td>
+                <td>${metrics.precision.toFixed(4)}</td>
+                <td>${metrics.recall.toFixed(4)}</td>
+                <td>${metrics.f1.toFixed(4)}</td>
+            `;
         }
-        table += '</tr>';
+        tableHTML += '</tr>';
     });
-    document.getElementById('metricsTable').innerHTML = table;
+    document.getElementById('summaryTable').innerHTML = tableHTML;
 }
 </script>
 </body>
@@ -403,15 +436,18 @@ def add_outliers(X, y, n_samples, perc, mag):
     if n == 0: return X, y
     idx = np.random.choice(n_samples, n, replace=False)
     X[idx] *= mag
-    if y.ndim == 2:
+    if y.ndim == 2:  # regression
         y[idx] *= mag
-    else:
-        y[idx] = 1 - y[idx]
+    else:  # classification flip labels
+        if y.max() > 1:  # multi-class, randomize
+            y[idx] = np.random.randint(0, y.max() + 1, size=n)
+        else:  # binary
+            y[idx] = 1 - y[idx]
     return X, y
 
 def clean_nans(d):
     if isinstance(d, list):
-        return [None if np.isnan(x) else x for x in d]
+        return [0.0 if np.isnan(x) or np.isinf(x) else x for x in d]
     if isinstance(d, dict):
         return {k: clean_nans(v) for k, v in d.items()}
     return d
@@ -463,8 +499,12 @@ def train():
 
         X_train_t = torch.FloatTensor(X_train)
         X_val_t = torch.FloatTensor(X_val)
-        y_train_t = torch.FloatTensor(y_train) if task == 'regression' else torch.LongTensor(y_train)
-        y_val_t = torch.FloatTensor(y_val) if task == 'regression' else torch.LongTensor(y_val)
+        if task == 'regression':
+            y_train_t = torch.FloatTensor(y_train)
+            y_val_t = torch.FloatTensor(y_val)
+        else:
+            y_train_t = torch.LongTensor(y_train)
+            y_val_t = torch.LongTensor(y_val)
 
         results = {}
         for loss_name in losses:
@@ -473,67 +513,77 @@ def train():
             criterion = get_loss_function(loss_name)
             opt = optim.Adam(model.parameters(), lr=0.001)
 
-            train_losses, val_losses = [], []
+            train_losses = []
+            val_losses = []
             start = time.time()
-            conv_epoch = None
+            convergence_epoch = None
 
             for epoch in range(epochs):
                 model.train()
                 opt.zero_grad()
-                out = model(X_train_t)
+                outputs = model(X_train_t)
 
-                # Fixed: Use LongTensor for CE, Float for BCE/regression
                 try:
-                    if loss_name in ['cross_entropy', 'sparse_categorical_crossentropy']:
-                        loss = criterion(out, y_train_t)
-                    elif loss_name == 'bce':
-                        loss = criterion(out, y_train_t.float())
+                    if loss_name in ['cross_entropy', 'sparse_categorical_crossentropy'] and task != 'regression':
+                        loss = criterion(outputs, y_train_t)
+                    elif loss_name == 'bce' and task == 'binary_classification':
+                        loss = criterion(outputs, y_train_t.float())
                     else:
-                        loss = criterion(out, y_train_t.float() if task != 'regression' else y_train_t)
+                        # Fallback for mismatched
+                        if task == 'regression':
+                            loss = criterion(outputs, y_train_t)
+                        else:
+                            loss = criterion(outputs.mean(dim=1, keepdim=True), y_train_t.float().unsqueeze(1))
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                    opt.step()
                 except Exception as e:
-                    logger.warning(f"Loss {loss_name} failed: {e}")
-                    loss = torch.tensor(0.0)
-
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                opt.step()
+                    logger.warning(f"Loss computation or backward failed for {loss_name} on {task}: {str(e)}")
+                    loss = torch.tensor(float('nan'))  # Use NaN to indicate failure in plots
 
                 model.eval()
                 with torch.no_grad():
-                    val_out = model(X_val_t)
+                    val_outputs = model(X_val_t)
                     try:
-                        if loss_name in ['cross_entropy', 'sparse_categorical_crossentropy']:
-                            val_loss = criterion(val_out, y_val_t)
-                        elif loss_name == 'bce':
-                            val_loss = criterion(val_out, y_val_t.float())
+                        if loss_name in ['cross_entropy', 'sparse_categorical_crossentropy'] and task != 'regression':
+                            val_loss = criterion(val_outputs, y_val_t)
+                        elif loss_name == 'bce' and task == 'binary_classification':
+                            val_loss = criterion(val_outputs, y_val_t.float())
                         else:
-                            val_loss = criterion(val_out, y_val_t.float() if task != 'regression' else y_val_t)
-                    except:
-                        val_loss = torch.tensor(0.0)
+                            if task == 'regression':
+                                val_loss = criterion(val_outputs, y_val_t)
+                            else:
+                                val_loss = criterion(val_outputs.mean(dim=1, keepdim=True), y_val_t.float().unsqueeze(1))
+                    except Exception as e:
+                        logger.warning(f"Val loss failed for {loss_name} on {task}: {str(e)}")
+                        val_loss = torch.tensor(float('nan'))
 
-                train_losses.append(float(loss.item()) if not torch.isnan(loss) else 0.0)
-                val_losses.append(float(val_loss.item()) if not torch.isnan(val_loss) else 0.0)
+                train_losses.append(float(loss.item()) if isinstance(loss, torch.Tensor) else float('nan'))
+                val_losses.append(float(val_loss.item()) if isinstance(val_loss, torch.Tensor) else float('nan'))
 
-                if epoch > 10 and conv_epoch is None and len(val_losses) >= 5:
-                    recent = val_losses[-5:]
-                    if abs(recent[-1] - recent[0]) / (abs(recent[0]) + 1e-8) < 0.001:
-                        conv_epoch = epoch
+                if epoch > 10 and convergence_epoch is None:
+                    recent_val = val_losses[-5:]
+                    if len(recent_val) == 5 and all(not np.isnan(r) for r in recent_val):
+                        if abs(recent_val[-1] - recent_val[0]) / (abs(recent_val[0]) + 1e-8) < 0.001:
+                            convergence_epoch = epoch + 1  # 1-indexed
 
             total_time = time.time() - start
-            metrics = evaluate_regression(model, X_val_t, y_val_t) if task == 'regression' else evaluate_classification(model, X_val_t, y_val_t)
+            if task == 'regression':
+                metrics = evaluate_regression(model, X_val_t, y_val_t)
+            else:
+                metrics = evaluate_classification(model, X_val_t, y_val_t)
 
             results[loss_name] = {
                 'train_losses': train_losses,
                 'val_losses': val_losses,
                 'total_time': total_time,
-                'convergence_epoch': conv_epoch or epochs,
+                'convergence_epoch': convergence_epoch or epochs,
                 'metrics': metrics
             }
 
         return jsonify(clean_nans(results))
-
     except Exception as e:
-        logger.error(f"Training error: {e}")
+        logger.error(f"Server error in train: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

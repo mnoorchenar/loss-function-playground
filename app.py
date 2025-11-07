@@ -39,8 +39,6 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         .tab-button.active { background: white; color: #667eea; border-bottom: 3px solid #667eea; }
         .tab-content { display: none; padding: 40px; }
         .tab-content.active { display: block; }
-        .info-section { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; }
-        .info-section h3 { font-size: 1.4em; margin-bottom: 15px; }
         .section-title { font-size: 1.8em; color: #333; margin: 30px 0 20px; padding-bottom: 10px; border-bottom: 3px solid #667eea; }
         .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin-bottom: 30px; }
         .control-group { background: #f8f9fa; padding: 20px; border-radius: 10px; border: 2px solid transparent; }
@@ -61,6 +59,8 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         .loss-function-card { background: white; padding: 25px; border-radius: 12px; margin: 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-left: 5px solid #667eea; }
         .loss-function-card .formula { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 15px 0; overflow-x: auto; font-family: 'Courier New', monospace; }
         .footer { background: #2d3436; color: white; padding: 30px; text-align: center; margin-top: 50px; border-radius: 0 0 15px 15px; }
+        .footer a { color: #667eea; text-decoration: none; font-weight: 600; }
+        .footer a:hover { color: #764ba2; text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -68,7 +68,6 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
     <div class="header-banner">
         <h1>ML Loss Function Playground</h1>
         <p>Interactive Tool to Compare Loss Functions</p>
-        <p style="font-size: 0.9em; margin-top: 10px;">by Mohammad Noorchenarboo</p>
     </div>
 
     <div class="tab-navigation">
@@ -78,16 +77,6 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
 
     <!-- PLAYGROUND TAB -->
     <div id="playground-tab" class="tab-content active">
-        <div class="info-section">
-            <h3>What You'll Learn</h3>
-            <ul>
-                <li>Compare loss functions on the same dataset</li>
-                <li>See convergence speed and stability</li>
-                <li>Experiment with noise and outliers</li>
-                <li>Try mismatched loss functions (educational!)</li>
-            </ul>
-        </div>
-
         <h2 class="section-title">Configure Experiment</h2>
         <div class="controls">
             <div class="control-group">
@@ -207,6 +196,31 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             </div>
             <p>Combines MSE and MAE. Robust + smooth.</p>
         </div>
+
+        <!-- MOVED: What You'll Learn -->
+        <div class="info-section" style="margin-top: 40px;">
+            <h3>What You'll Learn</h3>
+            <ul style="columns: 2; gap: 20px; margin-top: 10px;">
+                <li>Compare loss functions on same dataset</li>
+                <li>See convergence speed & stability</li>
+                <li>Experiment with noise & outliers</li>
+                <li>Try mismatched losses (educational!)</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+        <p>
+            <strong>© 2025 Mohammad Noorchenarboo</strong> |
+            <a href="https://www.linkedin.com/in/mnoorchenar" target="_blank">LinkedIn Profile</a>
+        </p>
+        <p style="margin-top: 10px; font-size: 0.85em;">
+            Copyright Notice: All rights reserved. Unauthorized copying, reproduction, or distribution of this application is strictly prohibited.
+        </p>
+        <p style="margin-top: 8px; font-size: 0.8em; opacity: 0.8;">
+            This application is provided for educational and research purposes only.
+        </p>
     </div>
 </div>
 
@@ -286,14 +300,30 @@ function displayResults(data, epochs, task) {
 
     Object.keys(data).forEach(name => {
         const d = data[name];
+        const x = Array.from({length: epochs}, (_, i) => i + 1);
         Plotly.newPlot(`plot_${name}`, [
-            { y: d.train_losses, x: [...Array(epochs).keys()].map(i => i+1), name: 'Train', line: {width: 2} },
-            { y: d.val_losses, x: [...Array(epochs).keys()].map(i => i+1), name: 'Val', line: {width: 2, dash: 'dot'} }
-        ], { yaxis: { type: 'log' }, height: 400 });
+            { x, y: d.train_losses, name: 'Train Loss', line: { color: '#667eea', width: 2 } },
+            { x, y: d.val_losses, name: 'Val Loss', line: { color: '#f5576c', width: 2, dash: 'dot' } }
+        ], {
+            title: `${name.toUpperCase()} Loss`,
+            xaxis: { title: 'Epoch' },
+            yaxis: { title: 'Loss', type: 'log' },
+            height: 400
+        });
     });
 
     const times = Object.keys(data).map(k => data[k].total_time);
-    Plotly.newPlot('timePlot', [{ x: Object.keys(data), y: times, type: 'bar' }], { height: 400 });
+    Plotly.newPlot('timePlot', [{
+        x: Object.keys(data),
+        y: times,
+        type: 'bar',
+        marker: { color: '#667eea' }
+    }], {
+        title: 'Training Time per Loss',
+        xaxis: { title: 'Loss Function' },
+        yaxis: { title: 'Time (s)' },
+        height: 400
+    });
 
     let table = '<tr><th>Loss</th><th>Converged</th><th>Time (s)</th>';
     if (task === 'regression') table += '<th>MSE</th><th>MAE</th><th>R²</th></tr>';
@@ -373,9 +403,9 @@ def add_outliers(X, y, n_samples, perc, mag):
     if n == 0: return X, y
     idx = np.random.choice(n_samples, n, replace=False)
     X[idx] *= mag
-    if y.ndim == 2:  # regression
+    if y.ndim == 2:
         y[idx] *= mag
-    else:  # classification
+    else:
         y[idx] = 1 - y[idx]
     return X, y
 
@@ -452,14 +482,16 @@ def train():
                 opt.zero_grad()
                 out = model(X_train_t)
 
+                # Fixed: Use LongTensor for CE, Float for BCE/regression
                 try:
-                    if task != 'regression' and loss_name in ['cross_entropy', 'sparse_categorical_crossentropy']:
+                    if loss_name in ['cross_entropy', 'sparse_categorical_crossentropy']:
                         loss = criterion(out, y_train_t)
-                    elif task == 'binary_classification' and loss_name == 'bce':
+                    elif loss_name == 'bce':
                         loss = criterion(out, y_train_t.float())
                     else:
                         loss = criterion(out, y_train_t.float() if task != 'regression' else y_train_t)
-                except:
+                except Exception as e:
+                    logger.warning(f"Loss {loss_name} failed: {e}")
                     loss = torch.tensor(0.0)
 
                 loss.backward()
@@ -470,12 +502,17 @@ def train():
                 with torch.no_grad():
                     val_out = model(X_val_t)
                     try:
-                        val_loss = criterion(val_out, y_val_t.float() if task != 'regression' and loss_name != 'bce' else y_val_t)
+                        if loss_name in ['cross_entropy', 'sparse_categorical_crossentropy']:
+                            val_loss = criterion(val_out, y_val_t)
+                        elif loss_name == 'bce':
+                            val_loss = criterion(val_out, y_val_t.float())
+                        else:
+                            val_loss = criterion(val_out, y_val_t.float() if task != 'regression' else y_val_t)
                     except:
                         val_loss = torch.tensor(0.0)
 
-                train_losses.append(float(loss.item()))
-                val_losses.append(float(val_loss.item()))
+                train_losses.append(float(loss.item()) if not torch.isnan(loss) else 0.0)
+                val_losses.append(float(val_loss.item()) if not torch.isnan(val_loss) else 0.0)
 
                 if epoch > 10 and conv_epoch is None and len(val_losses) >= 5:
                     recent = val_losses[-5:]

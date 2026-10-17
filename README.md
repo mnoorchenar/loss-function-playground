@@ -24,8 +24,8 @@ pinned: false
 
 <br/>
 
-[![Live Demo](https://img.shields.io/badge/%E2%96%B6_Live_Demo-Hugging_Face_Space-ffcc00?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/spaces/mnoorchenar/loss-functions)
-[![Source Code](https://img.shields.io/badge/Source_Code-GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mnoorchenar/loss-functions)
+[![Live Demo](https://img.shields.io/badge/%E2%96%B6_Live_Demo-Hugging_Face_Space-ffcc00?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/spaces/mnoorchenar/loss-function-playground)
+[![Source Code](https://img.shields.io/badge/Source_Code-GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mnoorchenar/loss-function-playground)
 
 <br/>
 
@@ -95,9 +95,8 @@ pinned: false
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/mnoorchenar/loss-functions.git
-cd loss-functions
-
+git clone https://github.com/mnoorchenar/loss-function-playground.git
+cd loss-function-playground
 # 2. Create a virtual environment
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
@@ -116,8 +115,8 @@ Open your browser at `http://localhost:7860` 🎉
 ## 🐳 Docker Deployment
 
 ```bash
-docker build -t loss-functions .
-docker run -p 7860:7860 loss-functions
+docker build -t loss-function-playground .
+docker run -p 7860:7860 loss-function-playground
 ```
 
 ---
@@ -136,7 +135,7 @@ docker run -p 7860:7860 loss-functions
 ## 📁 Project Structure
 
 ```
-loss-functions/
+loss-function-playground/
 │
 ├── 📄 Dockerfile                 # Container definition (port 7860)
 ├── 📄 app.py                     # Application entry point
@@ -196,8 +195,8 @@ This project and all associated code are the intellectual property of the author
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:7c3aed,100:06b6d4&height=120&section=footer&text=Made%20with%20%E2%9D%A4%EF%B8%8F%20by%20Mohammad%20Noorchenarboo&fontColor=ffffff&fontSize=18&fontAlignY=80" width="100%"/>
 
-[![Star on GitHub](https://img.shields.io/badge/%E2%AD%90_Star-on_GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mnoorchenar/loss-functions/stargazers)
-[![Fork on GitHub](https://img.shields.io/badge/%F0%9F%8D%B4_Fork-on_GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mnoorchenar/loss-functions/fork)
+[![Star on GitHub](https://img.shields.io/badge/%E2%AD%90_Star-on_GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mnoorchenar/loss-function-playground/stargazers)
+[![Fork on GitHub](https://img.shields.io/badge/%F0%9F%8D%B4_Fork-on_GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mnoorchenar/loss-function-playground/fork)
 
 <sub>The name "ML Loss Function Playground" is used purely for academic and research purposes. Any similarity to existing product names or trademarks is entirely coincidental. This project has no affiliation with any commercial entity.</sub>
 
